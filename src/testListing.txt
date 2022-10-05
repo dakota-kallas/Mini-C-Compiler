@@ -1,0 +1,12 @@
+int a;
+int b;
+int c = 2;
+        ^
+I found 2!
+a = 1;
+b = 22;
+    ^
+I found 2!
+     ^
+I found 2!
+c = a + b;

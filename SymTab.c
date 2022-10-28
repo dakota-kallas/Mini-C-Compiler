@@ -7,7 +7,7 @@
  * TODO: Add ability to resize after inserting a certian number of values into a table
  */
 
-#include "SymTab.h"
+#include "headers/SymTab.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

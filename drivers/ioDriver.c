@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "IOMngr.c"
+#include "../IOMngr.c"
 
 int main(int argc, char **argv)
 {

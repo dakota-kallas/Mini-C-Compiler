@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "SymTab.c"
+#include "../SymTab.c"
 
 void printTable(SymTab *table);
 

@@ -8,7 +8,7 @@
  */
 #include <string.h>
 #include <math.h>
-#include "IOMngr.h"
+#include "headers/IOMngr.h"
 
 FILE *sourceFile = NULL;
 FILE *listingFile = NULL;

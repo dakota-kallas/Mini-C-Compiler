@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
-#include "SymTab.c"
-#include "IOMngr.c"
+#include "../SymTab.c"
+#include "../IOMngr.c"
 
 void printTable(SymTab *table);
 void printTableContents(SymTab *table);

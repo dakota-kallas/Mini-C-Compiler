@@ -6,12 +6,13 @@
  * point for reading characters from the source program
  *
  */
-
+#include <string.h>
+#include <math.h>
 #include "IOMngr.h"
 
 FILE *sourceFile = NULL;
 FILE *listingFile = NULL;
-int currentLine = 0;
+int currentLine = 1;
 int currentColumn = -1;
 char line[MAXLINE + 1];
 
@@ -35,6 +36,8 @@ int openFiles(char *source, char *listingName)
         return 0;
     }
 
+    currentLine = 1;
+    currentColumn = -1;
     fgets(line, MAXLINE, sourceFile);
     return 1;
 }
@@ -66,25 +69,35 @@ char getNextSourceChar()
     {
         if (listingFile != NULL)
         {
-            fputs(line, listingFile);
+            fprintf(listingFile, "%d. %s", currentLine, line);
         }
     }
 
     currentColumn++;
 
-    if (line[currentColumn] != '\0')
+    if (iscntrl(line[currentColumn]) == 0)
     {
         return line[currentColumn];
     }
     else
     {
-        if (fgets(line, MAXLINE, sourceFile) == NULL)
+        if (feof(sourceFile))
         {
-            return '\0';
+            return EOF;
         }
-
-        currentColumn = -1;
-        currentLine++;
+        else
+        {
+            if (fgets(line, MAXLINE, sourceFile) != NULL)
+            {
+                currentColumn = -1;
+                currentLine++;
+                return '\0';
+            }
+            else
+            {
+                return EOF;
+            }
+        }
     }
 }
 
@@ -137,6 +150,25 @@ void writeIndicator(int column)
     if (listingFile != NULL)
     {
         writeTo = listingFile;
+        fprintf(writeTo, "  ");
+        for (double i = 1; i < floor(log(abs(currentLine))) + 1; i++)
+        {
+            fprintf(writeTo, " ");
+        }
+    }
+    else
+    {
+        fprintf(writeTo, "%s", line);
+    }
+
+    if (strchr(line, '\n') == NULL)
+    {
+        fprintf(writeTo, "\n");
+        fprintf(writeTo, "  ");
+        for (double i = 1; i < floor(log(abs(currentLine))) + 1; i++)
+        {
+            fprintf(writeTo, " ");
+        }
     }
 
     for (int i = 0; i < column; i++)

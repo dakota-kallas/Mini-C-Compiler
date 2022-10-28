@@ -25,6 +25,7 @@ typedef struct
     SymEntry **contents;
     SymEntry *current;
 } SymTab;
+
 SymTab *createSymTab(int size);
 /* PRE: size >= 0
  size is an estimate of the number of items that will be stored in the symbol

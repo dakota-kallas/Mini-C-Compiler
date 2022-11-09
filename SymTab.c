@@ -2,9 +2,9 @@
  * Author: Dakota Kallas
  * Date:   9/12/2022
  *
- * Description: A symbol table that stores information using sepereate chaining hashing.
+ * Description: A symbol table that stores information using
+ * sepereate chaining hashing.
  *
- * TODO: Add ability to resize after inserting a certian number of values into a table
  */
 
 #include "headers/SymTab.h"
@@ -121,7 +121,8 @@ int enterName(SymTab *table, char *name)
     }
 
     int hashValue = hash(table, name);
-    SymEntry *entry = (SymEntry *)malloc(sizeof(SymEntry *));
+    SymEntry *entry = (SymEntry *)malloc(sizeof(SymEntry));
+    entry->name = (char *)malloc(sizeof(char) * strlen(name));
     entry->name = strdup(name);
     entry->next = table->contents[hashValue];
     entry->attribute = NULL;
@@ -215,6 +216,11 @@ void setCurrentAttr(SymTab *table, void *attr)
  */
 int nextEntry(SymTab *table)
 {
+    if (!table->current)
+    {
+        return 0;
+    }
+
     if (table->current->next != NULL)
     {
         table->current = table->current->next;

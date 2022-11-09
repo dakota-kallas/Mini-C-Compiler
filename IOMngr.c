@@ -8,6 +8,7 @@
  */
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 #include "headers/IOMngr.h"
 
 FILE *sourceFile = NULL;

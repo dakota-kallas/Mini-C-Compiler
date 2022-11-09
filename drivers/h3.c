@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
-#include "../SymTab.c"
-#include "../IOMngr.c"
+#include "../headers/SymTab.h"
+#include "../headers/IOMngr.h"
 
 void printTable(SymTab *table);
 void printTableContents(SymTab *table);
@@ -141,9 +141,9 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        writeIndicator(currentColumn);
+                        writeIndicator(getCurrentColumnNum());
                         writeMessage("Illegal character.");
-                        writeIndicator(currentColumn - currentTokenChar);
+                        writeIndicator(getCurrentColumnNum() - currentTokenChar);
                         writeMessage("Invalid token.");
                         type = -1;
                     }
@@ -154,9 +154,9 @@ int main(int argc, char *argv[])
                     // If it is no longer a alphabetical character or digit, it is invalid.
                     if (isalpha(c) == 0 && isdigit(c) == 0)
                     {
-                        writeIndicator(currentColumn);
+                        writeIndicator(getCurrentColumnNum());
                         writeMessage("Illegal character.");
-                        writeIndicator(currentColumn - currentTokenChar);
+                        writeIndicator(getCurrentColumnNum() - currentTokenChar);
                         writeMessage("Invalid token.");
                         type = -1;
                     }
@@ -167,9 +167,9 @@ int main(int argc, char *argv[])
                     // If it is no longer a digit, it is invalid unless it's hex.
                     if (isdigit(c) == 0)
                     {
-                        writeIndicator(currentColumn);
+                        writeIndicator(getCurrentColumnNum());
                         writeMessage("Illegal character.");
-                        writeIndicator(currentColumn - currentTokenChar);
+                        writeIndicator(getCurrentColumnNum() - currentTokenChar);
                         writeMessage("Invalid token.");
                         type = -1;
                     }
@@ -180,9 +180,9 @@ int main(int argc, char *argv[])
                     // If it is no longer a hex character, it is invalid.
                     if (isxdigit(c) == 0)
                     {
-                        writeIndicator(currentColumn);
+                        writeIndicator(getCurrentColumnNum());
                         writeMessage("Illegal character.");
-                        writeIndicator(currentColumn - currentTokenChar);
+                        writeIndicator(getCurrentColumnNum() - currentTokenChar);
                         writeMessage("Invalid token.");
                         type = -1;
                     }
@@ -200,9 +200,9 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        writeIndicator(currentColumn);
+                        writeIndicator(getCurrentColumnNum());
                         writeMessage("Illegal character.");
-                        writeIndicator(currentColumn - currentTokenChar);
+                        writeIndicator(getCurrentColumnNum() - currentTokenChar);
                         writeMessage("Invalid token.");
                         type = -1;
                     }
@@ -267,9 +267,9 @@ int main(int argc, char *argv[])
         }
 
         printTableContents(table);
-        closeFiles();
     }
 
+    closeFiles();
     destroySymTab(table);
 }
 

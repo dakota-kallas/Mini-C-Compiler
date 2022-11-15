@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../IOMngr.c"
+#include "../headers/IOMngr.h"
 
 int main(int argc, char **argv)
 {
     // Test opening the files
-    if (openFiles("testSource.txt", "testListing.txt") == 1)
+    if (openFiles("./src/src0.txt", "./src/listing.txt") == 1)
     {
         printf("Open Successful!\n");
 

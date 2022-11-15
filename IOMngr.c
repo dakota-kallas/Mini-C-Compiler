@@ -1,15 +1,19 @@
-/*
- * Author: Dakota Kallas
- * Date:   9/20/2022
- *
- * Description: This module will provide the sole access
+/**
+ * @file IOMngr.c
+ * @author Dakota Kallas
+ * @brief This module will provide the sole access
  * point for reading characters from the source program
+ * @version 0.1
+ * @date 2022-09-20
+ *
+ * @copyright Copyright (c) 2022
  *
  */
+
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#include "headers/IOMngr.h"
+#include "IOMngr.h"
 
 FILE *sourceFile = NULL;
 FILE *listingFile = NULL;

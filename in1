@@ -1,0 +1,7 @@
+int num1;
+int num2;
+num1 = 10 + 2;
+num2 = 20 * 3 + num1;
+print num1;
+print num2;
+

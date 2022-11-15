@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../SymTab.c"
+#include "../headers/SymTab.h"
 
 void printTable(SymTab *table);
+void printTableInOrder(SymTab *table);
 
 int main(int argc, char **argv)
 {
@@ -15,10 +16,16 @@ int main(int argc, char **argv)
     printf("'Laura': %d\n", enterName(table, "Laura"));
     printf("'Alberto': %d\n", enterName(table, "Alberto"));
     printf("'Brian': %d\n", enterName(table, "Brian"));
+    printf("'Brian': %d\n", enterName(table, "Dakota"));
+    printf("'Brian': %d\n", enterName(table, "Jack"));
+    printf("'Brian': %d\n", enterName(table, "Luke"));
+    printf("'Brian': %d\n", enterName(table, "Lisa"));
 
     // Print out the initial table
     printf("\nTable:\n");
     printTable(table);
+    printf("\nTable In Order:\n");
+    printTableInOrder(table);
 
     // Test findName
     printf("\nFinding Names:\n");
@@ -76,4 +83,22 @@ void printTable(SymTab *table)
             printf("%d\n", -1);
         }
     }
+}
+
+void printTableInOrder(SymTab *table)
+{
+    int next = startIterator(table);
+
+    while (next)
+    {
+        printf("%s", getCurrentName(table));
+        next = nextEntry(table);
+
+        if (next)
+        {
+            printf(", ");
+        }
+    }
+
+    printf("\n");
 }

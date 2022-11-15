@@ -1,13 +1,16 @@
-/*
- * Author: Dakota Kallas
- * Date:   9/12/2022
+/**
+ * @file SymTab.c
+ * @author Dakota Kallas
+ * @brief A symbol table class that interacts with tables
+ * storing information using sepereate chaining hashing.
+ * @version 0.1
+ * @date 2022-09-12
  *
- * Description: A symbol table that stores information using
- * sepereate chaining hashing.
+ * @copyright Copyright (c) 2022
  *
  */
 
-#include "headers/SymTab.h"
+#include "SymTab.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,7 +113,7 @@ int findName(SymTab *table, char *name)
  *
  * @param table represents the SymTab we are inserting into
  * @param name represents the string name we are trying to insert
- * @return int
+ * @return 1 if the name was not already in the table, otherwise return 0
  */
 int enterName(SymTab *table, char *name)
 {
@@ -131,13 +134,6 @@ int enterName(SymTab *table, char *name)
 
     return 1;
 }
-
-/*if name is not in the symbol table, a copy of name is added to the symbol table
- with a NULL attribute, set current to reference the new (name, attribute) pair
- and return 1
- if name is in the symbol table, set current to reference the (name, attribute)
- pair and return 0
-*/
 
 /**
  * @brief a hasing function used to determine where to store/find a name in the SymTab object

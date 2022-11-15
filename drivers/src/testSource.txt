@@ -1,6 +1,0 @@
-int a;
-int b;
-int c = 2;
-a = 1;
-b = 22;
-c = a + b;

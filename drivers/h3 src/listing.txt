@@ -1,0 +1,15 @@
+1. this
+2. is
+3. 22 + 3
+      ^
+Illegal character.
+      ^
+Invalid token.
+4. teSt0xFF
+5. 
+6. 40a
+     ^
+Illegal character.
+   ^
+Invalid token.
+7. 3

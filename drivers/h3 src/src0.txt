@@ -1,7 +1,0 @@
-this
-is
-22 + 3
-teSt0xFF
-
-40a
-3

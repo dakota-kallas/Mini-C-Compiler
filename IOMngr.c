@@ -15,8 +15,8 @@
 #include <ctype.h>
 #include "IOMngr.h"
 
-FILE *sourceFile = NULL;
-FILE *listingFile = NULL;
+FILE *sourceFile;
+FILE *listingFile;
 int currentLine = 1;
 int currentColumn = -1;
 char line[MAXLINE + 1];
@@ -30,15 +30,29 @@ char line[MAXLINE + 1];
  * @param sourceName represents the name of the source file
  * @param listingName represents the name of the listing file to use
  * @return 1 if the file open(s) were successful, otherwise return 0
+ *
+ * Check for listingname == NULL first
  */
 int openFiles(char *source, char *listingName)
 {
-    sourceFile = fopen(source, "r");
-    listingFile = fopen(listingName, "w");
+    sourceFile = NULL;
+    listingFile = NULL;
 
-    if (sourceFile == NULL || (listingName != NULL && listingFile == NULL))
+    sourceFile = fopen(source, "r");
+
+    if (sourceFile == NULL)
     {
         return 0;
+    }
+
+    if (listingName)
+    {
+        listingFile = fopen(listingName, "w");
+
+        if (listingFile == NULL)
+        {
+            return 0;
+        }
     }
 
     currentLine = 1;
@@ -70,39 +84,35 @@ void closeFiles()
  */
 char getNextSourceChar()
 {
-    if (currentColumn == -1)
+    if (sourceFile)
     {
-        if (listingFile != NULL)
+        // Look to see if you need to look at a new line
+        if (line[currentColumn] == '\n' || ((int)(strlen(line)) == currentColumn))
         {
-            fprintf(listingFile, "%d. %s", currentLine, line);
+            currentColumn = -1;
+
+            if (feof(sourceFile))
+            {
+                return EOF;
+            }
+
+            currentLine++;
+            line[0] = '\0';
+            fgets(line, MAXLINE, sourceFile);
+
+            if (listingFile)
+            {
+                fprintf(listingFile, "%d. %s", currentLine, line);
+            }
         }
-    }
 
-    currentColumn++;
+        currentColumn++;
 
-    if (iscntrl(line[currentColumn]) == 0)
-    {
         return line[currentColumn];
     }
     else
     {
-        if (feof(sourceFile))
-        {
-            return EOF;
-        }
-        else
-        {
-            if (fgets(line, MAXLINE, sourceFile) != NULL)
-            {
-                currentColumn = -1;
-                currentLine++;
-                return '\0';
-            }
-            else
-            {
-                return EOF;
-            }
-        }
+        return EOF;
     }
 }
 

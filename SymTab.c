@@ -36,17 +36,9 @@ SymTab *createSymTab(int size)
         }
     }
 
-    SymTab *table = NULL;
-    table = (SymTab *)malloc(sizeof(SymTab));
-
-    /* Check to see if there was na error allocating space */
-    if (table == NULL)
-    {
-        return NULL;
-    }
+    SymTab *table = malloc(sizeof(SymTab));
 
     table->size = size;
-    table->contents = NULL;
     table->current = NULL;
 
     table->contents = (SymEntry **)malloc(size * sizeof(SymEntry *));
@@ -95,9 +87,9 @@ int findName(SymTab *table, char *name)
 
     while (currentEntry != NULL)
     {
-        if (strcmp(table->contents[hashValue]->name, name) == 0)
+        if (strcmp(currentEntry->name, name) == 0)
         {
-            table->current = table->contents[hashValue];
+            table->current = currentEntry;
             return 1;
         }
 
@@ -124,8 +116,7 @@ int enterName(SymTab *table, char *name)
     }
 
     int hashValue = hash(table, name);
-    SymEntry *entry = (SymEntry *)malloc(sizeof(SymEntry));
-    entry->name = (char *)malloc(sizeof(char) * strlen(name));
+    SymEntry *entry = malloc(sizeof(SymEntry));
     entry->name = strdup(name);
     entry->next = table->contents[hashValue];
     entry->attribute = NULL;

@@ -7,14 +7,37 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "CodeGen.h"
 #include "Semantics.h"
-#include "SymTab.h"
 #include "IOMngr.h"
+#include "CodeGen.h"
 
 extern SymTab *table;
 
+struct String *allStrings;
+
+typedef struct
+{
+  int type; // 1 = int, 2 = boolean
+} Attr;
+
 /* Semantics support routines */
+
+void createVariable(SymTab *curTable, char *name, char *type)
+{
+  enterName(curTable, name);
+  Attr *a = malloc(sizeof(Attr));
+
+  // Check the type of the variable being created
+  if (strcmp(type, "bool") == 0)
+  {
+    a->type = 2;
+  }
+  else
+  {
+    a->type = 1;
+  }
+  setCurrentAttr(table, a);
+}
 
 struct ExprRes *doIntLit(char *digits)
 {
@@ -91,6 +114,23 @@ struct ExprRes *doCompare(struct ExprRes *Res1, struct ExprRes *Res2, char *OpCo
   Res1->Reg = reg;
   free(Res2);
   return Res1;
+}
+
+/**
+ * @brief Create a ExprList object
+ *
+ * @param Res represents the current Expression
+ * @param ExprList represents the next part of the list
+ * @return struct ExprResList* that represents the newly created list
+ */
+struct ExprResList *createList(struct ExprRes *Res, struct ExprResList *ExprList)
+{
+  struct ExprResList *resultList = malloc(sizeof(struct ExprResList));
+
+  resultList->Expr = Res;
+  resultList->Next = ExprList;
+
+  return resultList;
 }
 
 /**
@@ -269,24 +309,110 @@ struct ExprRes *doExponent(struct ExprRes *Res1, struct ExprRes *Res2)
   return Res1;
 }
 
-struct InstrSeq *doPrint(struct ExprRes *Expr)
+/**
+ * @brief Method to print out special characters a set amount of times
+ *
+ * @param Expr repesents the current Expression
+ * @param Special represents the character to be printed
+ * @return struct InstrSeq* the represents the code required to print the special characters
+ */
+struct InstrSeq *doPrintSpecial(struct ExprRes *Expr, char *Special)
 {
-  struct InstrSeq *code;
+  struct InstrSeq *result = Expr->Instrs;
 
-  code = Expr->Instrs;
+  char *label1 = GenLabel();
+  char *label2 = GenLabel();
 
-  AppendSeq(code, GenInstr(NULL, "li", "$v0", "1", NULL));
-  AppendSeq(code, GenInstr(NULL, "move", "$a0", TmpRegName(Expr->Reg), NULL));
-  AppendSeq(code, GenInstr(NULL, "syscall", NULL, NULL, NULL));
-
-  AppendSeq(code, GenInstr(NULL, "li", "$v0", "4", NULL));
-  AppendSeq(code, GenInstr(NULL, "la", "$a0", "_nl", NULL));
-  AppendSeq(code, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+  AppendSeq(result, GenInstr(NULL, "move", "$a1", TmpRegName(Expr->Reg), NULL));
+  AppendSeq(result, GenInstr(label1, NULL, NULL, NULL, NULL));
+  AppendSeq(result, GenInstr(NULL, "beq", "$zero", "$a1", label2));
+  AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+  AppendSeq(result, GenInstr(NULL, "la", "$a0", Special, NULL));
+  AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+  AppendSeq(result, GenInstr(NULL, "subi", "$a1", "$a1", "1"));
+  AppendSeq(result, GenInstr(NULL, "j", label1, NULL, NULL));
+  AppendSeq(result, GenInstr(label2, NULL, NULL, NULL, NULL));
 
   ReleaseTmpReg(Expr->Reg);
   free(Expr);
 
-  return code;
+  return result;
+}
+
+/**
+ * @brief Method to print out a String literal
+ *
+ * @param String represents the literal being printed
+ * @return struct InstrSeq* represents the code required to print the String
+ */
+struct InstrSeq *doPrintString(char *String)
+{
+  struct String *str = malloc(sizeof(struct String));
+
+  str->String = String;
+  str->Next = allStrings;
+  str->Label = GenWord();
+  allStrings = str;
+
+  struct InstrSeq *result = NULL;
+
+  result = AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+  AppendSeq(result, GenInstr(NULL, "la", "$a0", str->Label, NULL));
+  AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+
+  return result;
+}
+
+/**
+ * @brief Method to print out a list of expression values
+ *
+ * @param ExprList represents the list of expressions
+ * @return struct InstrSeq* that represent the code required to print the expression values
+ */
+struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
+{
+
+  struct InstrSeq *result = NULL;
+  struct ExprResList *ExprListCopy = ExprList;
+
+  while (ExprListCopy)
+  {
+    result = AppendSeq(result, ExprListCopy->Expr->Instrs);
+
+    AppendSeq(result, GenInstr(NULL, "add", "$a0", TmpRegName(ExprListCopy->Expr->Reg), "$zero"));
+    AppendSeq(result, GenInstr(NULL, "li", "$v0", "1", NULL));
+    AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+
+    AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+    AppendSeq(result, GenInstr(NULL, "la", "$a0", "_space", NULL));
+    AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+
+    ReleaseTmpReg(ExprListCopy->Expr->Reg);
+    free(ExprListCopy->Expr);
+
+    ExprList = ExprListCopy;
+    ExprListCopy = ExprListCopy->Next;
+    free(ExprList);
+  }
+
+  return result;
+}
+
+/**
+ * @brief Method used to read in an Id value from the user
+ *
+ * @param Id represents the word being stored in
+ * @param Next represents the rest of the values being read into
+ * @return struct InstrSeq* the instructions required to read in theId values
+ */
+struct InstrSeq *doRead(char *Id, struct InstrSeq *Next)
+{
+  struct InstrSeq *result = AppendSeq(NULL, GenInstr(NULL, "li", "$v0", "5", NULL));
+  AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+  AppendSeq(result, GenInstr(NULL, "sw", "$v0", Id, NULL));
+  AppendSeq(result, Next);
+
+  return result;
 }
 
 struct InstrSeq *doAssign(char *name, struct ExprRes *Expr)
@@ -335,21 +461,57 @@ struct ExprRes *doEquality(struct ExprRes *Res1, struct ExprRes *Res2, char *OpC
 }
 
 /**
- * @brief Method used to evaluate an If statement
+ * @brief Method used to evaluate an If or If/Else statement
  *
  * @param Res represents the boolean expression
  * @param seq represents the instructs to be appended if true
+ * @param seqElse represents the instructs to be appended if false
  * @return struct InstrSeq* the new instructions in the if statement
  */
-extern struct InstrSeq *doIf(struct ExprRes *Res, struct InstrSeq *seq)
+extern struct InstrSeq *doIf(struct ExprRes *Res, struct InstrSeq *seq, struct InstrSeq *seqElse)
 {
   struct InstrSeq *seq2;
   char *label = GenLabel();
   AppendSeq(Res->Instrs, GenInstr(NULL, "beq", "$zero", TmpRegName(Res->Reg), label));
   seq2 = AppendSeq(Res->Instrs, seq);
   AppendSeq(seq2, GenInstr(label, NULL, NULL, NULL, NULL));
+
+  if (seqElse)
+  {
+    char *labelElse = GenLabel();
+    AppendSeq(seq2, GenInstr(NULL, "bne", "$zero", TmpRegName(Res->Reg), labelElse));
+    AppendSeq(seq2, seqElse);
+    AppendSeq(seq2, GenInstr(labelElse, NULL, NULL, NULL, NULL));
+  }
+
+  ReleaseTmpReg(Res->Reg);
   free(Res);
   return seq2;
+}
+
+/**
+ * @brief Method used to evaluate a While statement
+ *
+ * @param Res represents the boolean expression
+ * @param seq represents the instructs to be appended while true
+ * @return struct InstrSeq*
+ */
+struct InstrSeq *doWhile(struct ExprRes *Res, struct InstrSeq *seq)
+{
+  struct InstrSeq *result = NULL;
+  char *label1 = GenLabel();
+  char *label2 = GenLabel();
+
+  result = AppendSeq(result, GenInstr(label1, NULL, NULL, NULL, NULL));
+  AppendSeq(result, Res->Instrs);
+  AppendSeq(result, GenInstr(NULL, "beq", "$zero", TmpRegName(Res->Reg), label2));
+  AppendSeq(result, seq);
+  AppendSeq(result, GenInstr(NULL, "j", label1, NULL, NULL));
+  AppendSeq(result, GenInstr(label2, NULL, NULL, NULL, NULL));
+
+  ReleaseTmpReg(Res->Reg);
+  free(Res);
+  return result;
 }
 
 void Finish(struct InstrSeq *Code)
@@ -369,6 +531,17 @@ void Finish(struct InstrSeq *Code)
   AppendSeq(code, GenInstr(NULL, ".data", NULL, NULL, NULL));
   AppendSeq(code, GenInstr(NULL, ".align", "4", NULL, NULL));
   AppendSeq(code, GenInstr("_nl", ".asciiz", "\"\\n\"", NULL, NULL));
+  AppendSeq(code, GenInstr("_space", ".asciiz", "\" \"", NULL, NULL));
+  AppendSeq(code, GenInstr("_true", ".asciiz", "\"true\"", NULL, NULL));
+  AppendSeq(code, GenInstr("_false", ".asciiz", "\"false\"", NULL, NULL));
+
+  struct String *str = allStrings;
+  while (str)
+  {
+    AppendSeq(code, GenInstr(str->Label, ".asciiz", str->String, NULL, NULL));
+
+    str = str->Next;
+  }
 
   hasMore = startIterator(table);
   while (hasMore)
@@ -378,6 +551,5 @@ void Finish(struct InstrSeq *Code)
   }
 
   WriteSeq(code);
-
   return;
 }

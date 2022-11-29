@@ -16,15 +16,23 @@ digit   [0-9]
 
 %%
 if					                    {return IF;}
+else					                  {return ELSE;}
+while					                  {return WHILE;}
 int					                    {return Int;}
 bool					                  {return Bool;}
-print					                  {return Write;}
+print					                  {return Print;}
+printspaces					            {return PrintSpaces;}
+printlines					            {return PrintLines;}
+printString					            {return PrintString;}
+read					                  {return Read;}
 true                            {return BoolLit;}
 false                           {return BoolLit;}
 {letter}({letter}|{digit})*	    {return Ident;}
+\".*\"                          {return StringLit;}
 {digit}{digit}*		              {return IntLit;}
 \=\=					                  {return EQ;}
 \=					                    {return '=';}
+\,                              {return ',';}
 \!\=					                  {return NOT_EQ;}
 \!					                    {return '!';}
 \+					                    {return '+';}

@@ -8,6 +8,7 @@
 extern FILE *aFile;
 
 int NextLabel = 1;
+int NextWord = 1;
 
 struct TmpReg
 {
@@ -93,6 +94,16 @@ GenLabel()
   sprintf(label, "L%d", NextLabel++);
 
   return label;
+}
+
+char *GenWord()
+{
+  char *word;
+
+  word = (char *)malloc(8);
+  sprintf(word, "_W%d", NextWord++);
+
+  return word;
 }
 
 int AvailTmpReg()

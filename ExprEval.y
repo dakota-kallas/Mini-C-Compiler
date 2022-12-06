@@ -30,6 +30,7 @@ extern SymTab *table;
 
 %type <string> Id
 %type <string> String
+%type <string> DecIntLit
 %type <ExprRes> Factor
 %type <ExprRes> ExprL5
 %type <ExprRes> ExprL4
@@ -81,7 +82,8 @@ Prog			    :	Declarations StmtSeq						                              { Finish($2
 Declarations	:	Dec Declarations							                                { };
               |											                                          { };
 Dec			      :	Int Id ';'	                                                  { createVariable(table, $2, "int"); };
-Dec			      :	Bool Id ';'	                                                  { createVariable(table, $2, "int"); };
+              | Int Id '[' DecIntLit ']' ';'                                  { createArray($2, $4); };
+              |	Bool Id ';'	                                                  { createVariable(table, $2, "bool"); };
 StmtSeq 		  :	Stmt StmtSeq								                                  { $$ = AppendSeq($1, $2); } ;
               |											                                          { $$ = NULL;} ;
 Stmt			    :	Print '(' ExprList ')' ';'					                          { $$ = doPrintExpressionList($3); };
@@ -90,6 +92,7 @@ Stmt			    :	Print '(' ExprList ')' ';'					                          { $$ = doP
               |	PrintString '(' String ')' ';'					                      { $$ = doPrintString($3); };
               |	Read '(' ParamList ')' ';'					                          { $$ = $3; };
               | Id '=' BExprL0 ';'								                            { $$ = doAssign($1, $3); };
+              | Id '[' BExprL0 ']' '=' BExprL0 ';'								            { $$ = doArrayAssign($1, $3, $6); };
               |	IF '(' BExprL0 ')' '{' StmtSeq '}'                            { $$ = doIf($3, $6, NULL); };
               | IF '(' BExprL0 ')' '{' StmtSeq '}' ELSE '{' StmtSeq '}'       { $$ = doIf($3, $6, $10); };
               | WHILE '(' BExprL0 ')' '{' StmtSeq '}'                         { $$ = doWhile($3, $6); };
@@ -123,11 +126,16 @@ ExprL5		    :	'(' BExprL0 ')'							                                  { $$ = $2;
               |	Factor									                                      { $$ = $1; } ;
 Factor		    :	IntLit									                                      { $$ = doIntLit(yytext); };
       		    |	BoolLit									                                      { $$ = doBoolLit(yytext); };
+              |	Id '[' BExprL0 ']'									                          { $$ = doArrayRval($1, $3); };
               |	Id									                                          { $$ = doRval($1); };
-ParamList     : Id ',' ParamList                                              { $$ = doRead($1, $3); };
+ParamList     : Id '[' BExprL0 ']' ',' ParamList                              { $$ = doReadArray($1, $3, $6); };
+              | Id '[' BExprL0 ']'                                            { $$ = doReadArray($1, $3, NULL); };
+              | Id ',' ParamList                                              { $$ = doRead($1, $3); };
               | Id                                                            { $$ = doRead($1, NULL); };
+              |                                                               { $$ = NULL; };
 Id			      : Ident									                                        { $$ = strdup(yytext);}
 String			  : StringLit									                                    { $$ = strdup(yytext);}
+DecIntLit     : IntLit                                                        { $$ = strdup(yytext); };
  
 %%
 

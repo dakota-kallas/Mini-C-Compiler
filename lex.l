@@ -50,6 +50,8 @@ false                           {return BoolLit;}
 \;					                    {return ';';}
 \{					                    {return '{';}
 \}					                    {return '}';}
+\[                              {return '[';}
+\]                              {return ']';}
 \(					                    {return '(';}
 \)					                    {return ')';}
 

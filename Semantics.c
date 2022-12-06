@@ -13,7 +13,8 @@
 
 extern SymTab *table;
 
-struct String *allStrings;
+struct String *allStrings = NULL;
+struct Array *allArrays = NULL;
 
 typedef struct
 {
@@ -25,7 +26,7 @@ typedef struct
 void createVariable(SymTab *curTable, char *name, char *type)
 {
   enterName(curTable, name);
-  Attr *a = malloc(sizeof(Attr));
+  Attr *a = (Attr *)malloc(sizeof(Attr));
 
   // Check the type of the variable being created
   if (strcmp(type, "bool") == 0)
@@ -36,7 +37,33 @@ void createVariable(SymTab *curTable, char *name, char *type)
   {
     a->type = 1;
   }
-  setCurrentAttr(table, a);
+  setCurrentAttr(table, (void *)a);
+}
+
+/**
+ * @brief Declare a Array instance
+ *
+ * @param name represents the Id of the array
+ * @param size represents how many elements the array will be able to hold
+ * @return struct InstrSeq* that represents the code required to declare the array
+ */
+struct InstrSeq *createArray(char *name, char *size)
+{
+  struct InstrSeq *result = (struct InstrSeq *)malloc(sizeof(struct InstrSeq));
+  int reg;
+  reg = AvailTmpReg();
+
+  struct Array *arr = (struct Array *)malloc(sizeof(struct Array));
+
+  arr->Name = name;
+  arr->Next = allArrays;
+  arr->Size = atoi(size);
+  allArrays = arr;
+
+  result = AppendSeq(NULL, GenInstr(NULL, "sll", TmpRegName(reg), size, "2"));
+  AppendSeq(result, GenInstr(NULL, "la", "$a0", arr->Name, NULL));
+
+  return result;
 }
 
 struct ExprRes *doIntLit(char *digits)
@@ -45,6 +72,7 @@ struct ExprRes *doIntLit(char *digits)
 
   res = (struct ExprRes *)malloc(sizeof(struct ExprRes));
   res->Reg = AvailTmpReg();
+  res->Type = 1; // Int
   res->Instrs = GenInstr(NULL, "li", TmpRegName(res->Reg), digits, NULL);
 
   return res;
@@ -62,6 +90,7 @@ struct ExprRes *doBoolLit(char *boolean)
 
   res = (struct ExprRes *)malloc(sizeof(struct ExprRes));
   res->Reg = AvailTmpReg();
+  res->Type = 2; // Boolean
   if (strcmp(boolean, "true") == 0)
   {
     res->Instrs = GenInstr(NULL, "li", TmpRegName(res->Reg), "1", NULL);
@@ -74,6 +103,27 @@ struct ExprRes *doBoolLit(char *boolean)
   return res;
 }
 
+/**
+ * @brief Get the Rvalue of an element in an array
+ *
+ * @param name represents the name of the array we are looking for
+ * @param Res represents the element we are looking for
+ * @return struct ExprRes* that represents to code required to access that element
+ */
+struct ExprRes *doArrayRval(char *name, struct ExprRes *Res)
+{
+  char *elementRval = (char *)malloc(100 * sizeof(char));
+
+  AppendSeq(Res->Instrs, GenInstr(NULL, "sll", TmpRegName(Res->Reg), TmpRegName(Res->Reg), "2"));
+  sprintf(elementRval, "%s(%s)", name, TmpRegName(Res->Reg));
+  AppendSeq(Res->Instrs, GenInstr(NULL, "lw", TmpRegName(Res->Reg), elementRval, NULL));
+
+  free(elementRval);
+  free(name);
+
+  return Res;
+}
+
 struct ExprRes *doRval(char *name)
 {
   struct ExprRes *res;
@@ -83,6 +133,20 @@ struct ExprRes *doRval(char *name)
     writeIndicator(getCurrentColumnNum());
     writeMessage("Undeclared variable");
   }
+  else
+  {
+    // Check to see what type the attribute is (2 = bool, 1 = int)
+    Attr *curAttr = (Attr *)getCurrentAttr(table);
+    if (curAttr->type == 2)
+    {
+      res->Type = 2; // Boolean
+    }
+    else
+    {
+      res->Type = 1; // Int
+    }
+  }
+
   res = (struct ExprRes *)malloc(sizeof(struct ExprRes));
   res->Reg = AvailTmpReg();
   res->Instrs = GenInstr(NULL, "lw", TmpRegName(res->Reg), name, NULL);
@@ -112,6 +176,7 @@ struct ExprRes *doCompare(struct ExprRes *Res1, struct ExprRes *Res2, char *OpCo
   ReleaseTmpReg(Res1->Reg);
   ReleaseTmpReg(Res2->Reg);
   Res1->Reg = reg;
+  Res1->Type = 2; // Boolean
   free(Res2);
   return Res1;
 }
@@ -154,8 +219,9 @@ struct ExprRes *doArithmetic(struct ExprRes *Res1, struct ExprRes *Res2, char *O
                                    TmpRegName(Res2->Reg)));
   ReleaseTmpReg(Res1->Reg);
   ReleaseTmpReg(Res2->Reg);
-  ReleaseTmpReg(Res2->Reg);
+
   Res1->Reg = reg;
+  Res1->Type = 1; // Int
   free(Res2);
   return Res1;
 }
@@ -177,6 +243,7 @@ struct ExprRes *doUnaryMinus(struct ExprRes *Res)
                                   TmpRegName(Res->Reg)));
   ReleaseTmpReg(Res->Reg);
   Res->Reg = reg;
+  Res->Type = 1; // Int
 
   return Res;
 }
@@ -200,6 +267,7 @@ struct ExprRes *doLogicalCompare(struct ExprRes *Res1, struct ExprRes *Res2, cha
 
   ReleaseTmpReg(Res1->Reg);
   Res1->Reg = reg;
+  Res1->Type = 2; // Boolean
 
   if (Res2)
   {
@@ -227,6 +295,7 @@ struct ExprRes *doNegate(struct ExprRes *Res)
   AppendSeq(Res->Instrs, GenInstr(label1, NULL, NULL, NULL, NULL));
   AppendSeq(Res->Instrs, GenInstr(NULL, "li", TmpRegName(Res->Reg), "1", NULL));
   AppendSeq(Res->Instrs, GenInstr(label2, NULL, NULL, NULL, NULL));
+  Res->Type = 2; // Boolean
 
   return Res;
 }
@@ -255,6 +324,7 @@ struct ExprRes *doMod(struct ExprRes *Res1, struct ExprRes *Res2)
   ReleaseTmpReg(Res1->Reg);
   ReleaseTmpReg(Res2->Reg);
   Res1->Reg = reg;
+  Res1->Type = 1; // Int
   free(Res2);
   return Res1;
 }
@@ -301,6 +371,7 @@ struct ExprRes *doExponent(struct ExprRes *Res1, struct ExprRes *Res2)
   ReleaseTmpReg(reg3);
 
   Res1->Reg = reg1;
+  Res1->Type = 1; // Int
 
   free(Res2);
   free(label1);
@@ -341,22 +412,23 @@ struct InstrSeq *doPrintSpecial(struct ExprRes *Expr, char *Special)
 
 /**
  * @brief Method to print out a String literal
+ * TODO: Something with this is breaking Expr->Type
  *
  * @param String represents the literal being printed
  * @return struct InstrSeq* represents the code required to print the String
  */
 struct InstrSeq *doPrintString(char *String)
 {
-  struct String *str = malloc(sizeof(struct String));
+  struct String *str = (struct String *)malloc(sizeof(struct String));
 
   str->String = String;
   str->Next = allStrings;
   str->Label = GenWord();
   allStrings = str;
 
-  struct InstrSeq *result = NULL;
+  struct InstrSeq *result = (struct InstrSeq *)malloc(sizeof(struct InstrSeq));
 
-  result = AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+  result = AppendSeq(NULL, GenInstr(NULL, "li", "$v0", "4", NULL));
   AppendSeq(result, GenInstr(NULL, "la", "$a0", str->Label, NULL));
   AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
 
@@ -365,13 +437,13 @@ struct InstrSeq *doPrintString(char *String)
 
 /**
  * @brief Method to print out a list of expression values
+ * TODO: Something with this is breaking Expr->Type
  *
  * @param ExprList represents the list of expressions
  * @return struct InstrSeq* that represent the code required to print the expression values
  */
 struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
 {
-
   struct InstrSeq *result = NULL;
   struct ExprResList *ExprListCopy = ExprList;
 
@@ -379,9 +451,27 @@ struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
   {
     result = AppendSeq(result, ExprListCopy->Expr->Instrs);
 
+    // if (ExprListCopy->Expr->Type == 2)
+    // {
+    //   char *label1 = GenLabel();
+    //   char *label2 = GenLabel();
+    //   AppendSeq(result, GenInstr(NULL, "beq", "$zero", TmpRegName(ExprListCopy->Expr->Reg), label1));
+    //   AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+    //   AppendSeq(result, GenInstr(NULL, "la", "$a0", "_true", NULL));
+    //   AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    //   AppendSeq(result, GenInstr(NULL, "j", label2, NULL, NULL));
+    //   AppendSeq(result, GenInstr(label1, NULL, NULL, NULL, NULL));
+    //   AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+    //   AppendSeq(result, GenInstr(NULL, "la", "$a0", "_false", NULL));
+    //   AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    //   AppendSeq(result, GenInstr(label2, NULL, NULL, NULL, NULL));
+    // }
+    // else
+    // {
     AppendSeq(result, GenInstr(NULL, "add", "$a0", TmpRegName(ExprListCopy->Expr->Reg), "$zero"));
     AppendSeq(result, GenInstr(NULL, "li", "$v0", "1", NULL));
     AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    // }
 
     AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
     AppendSeq(result, GenInstr(NULL, "la", "$a0", "_space", NULL));
@@ -394,6 +484,7 @@ struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
     ExprListCopy = ExprListCopy->Next;
     free(ExprList);
   }
+  free(ExprListCopy);
 
   return result;
 }
@@ -415,6 +506,20 @@ struct InstrSeq *doRead(char *Id, struct InstrSeq *Next)
   return result;
 }
 
+struct InstrSeq *doReadArray(char *Id, struct ExprRes *Res, struct InstrSeq *Next)
+{
+  struct InstrSeq *result = AppendSeq(NULL, GenInstr(NULL, "li", "$v0", "5", NULL));
+  AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+
+  char *offset = malloc(100 * sizeof(char));
+  AppendSeq(result, GenInstr(NULL, "sll", TmpRegName(Res->Reg), TmpRegName(Res->Reg), "2"));
+  sprintf(offset, "%s(%s)", Id, TmpRegName(Res->Reg));
+  AppendSeq(result, GenInstr(NULL, "sw", "$v0", offset, NULL));
+  AppendSeq(result, Next);
+
+  return result;
+}
+
 struct InstrSeq *doAssign(char *name, struct ExprRes *Expr)
 {
   struct InstrSeq *code;
@@ -423,6 +528,19 @@ struct InstrSeq *doAssign(char *name, struct ExprRes *Expr)
   {
     writeIndicator(getCurrentColumnNum());
     writeMessage("Undeclared variable");
+  }
+  else
+  {
+    // Check to see what type the attribute is (2 = bool, 1 = int)
+    Attr *curAttr = (Attr *)getCurrentAttr(table);
+    if (curAttr->type == 2)
+    {
+      Expr->Type = 2; // Boolean
+    }
+    else
+    {
+      Expr->Type = 1; // Int
+    }
   }
 
   code = Expr->Instrs;
@@ -433,6 +551,36 @@ struct InstrSeq *doAssign(char *name, struct ExprRes *Expr)
   free(Expr);
 
   return code;
+}
+
+/**
+ * @brief Method used to assign a value to an array element
+ *
+ * @param name represents the array we are using
+ * @param Res1 represents the location of the element we want to access
+ * @param Res2 represents what is being stored in that elemenet
+ * @return struct InstrSeq* that represents the code required to store a value in the given element
+ */
+struct InstrSeq *doArrayAssign(char *name, struct ExprRes *Res1, struct ExprRes *Res2)
+{
+  struct InstrSeq *result = (struct InstrSeq *)malloc(sizeof(struct InstrSeq));
+
+  char *offset = malloc(100 * sizeof(char));
+
+  result = AppendSeq(Res1->Instrs, GenInstr(NULL, "sll", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), "2"));
+
+  AppendSeq(result, Res2->Instrs);
+  sprintf(offset, "%s(%s)", name, TmpRegName(Res1->Reg));
+  AppendSeq(result, GenInstr(NULL, "sw", TmpRegName(Res2->Reg), offset, NULL));
+
+  ReleaseTmpReg(Res1->Reg);
+  ReleaseTmpReg(Res2->Reg);
+  free(Res1);
+  free(Res2);
+  free(offset);
+  free(name);
+
+  return result;
 }
 
 /**
@@ -449,6 +597,7 @@ struct ExprRes *doEquality(struct ExprRes *Res1, struct ExprRes *Res2, char *OpC
   int reg = AvailTmpReg();
   AppendSeq(Res1->Instrs, Res2->Instrs);
   Res = (struct ExprRes *)malloc(sizeof(struct ExprRes));
+  Res->Type = 2; // Boolean
 
   AppendSeq(Res1->Instrs, GenInstr(NULL, OpCode, TmpRegName(reg), TmpRegName(Res1->Reg), TmpRegName(Res2->Reg)));
   Res->Reg = reg;
@@ -511,6 +660,8 @@ struct InstrSeq *doWhile(struct ExprRes *Res, struct InstrSeq *seq)
 
   ReleaseTmpReg(Res->Reg);
   free(Res);
+  free(label1);
+  free(label2);
   return result;
 }
 
@@ -530,6 +681,28 @@ void Finish(struct InstrSeq *Code)
   AppendSeq(code, GenInstr(NULL, "syscall", NULL, NULL, NULL));
   AppendSeq(code, GenInstr(NULL, ".data", NULL, NULL, NULL));
   AppendSeq(code, GenInstr(NULL, ".align", "4", NULL, NULL));
+
+  struct Array *arr = allArrays;
+  char *arrSize = (char *)malloc(100 * sizeof(char));
+
+  while (arr)
+  {
+    sprintf(arrSize, "%d", (arr->Size) << 2);
+    AppendSeq(code, GenInstr(arr->Name, ".space", arrSize, NULL, NULL));
+
+    arr = arr->Next;
+    free(allArrays);
+    allArrays = arr;
+  }
+  free(allArrays);
+
+  hasMore = startIterator(table);
+  while (hasMore)
+  {
+    AppendSeq(code, GenInstr((char *)getCurrentName(table), ".word", "0", NULL, NULL));
+    hasMore = nextEntry(table);
+  }
+
   AppendSeq(code, GenInstr("_nl", ".asciiz", "\"\\n\"", NULL, NULL));
   AppendSeq(code, GenInstr("_space", ".asciiz", "\" \"", NULL, NULL));
   AppendSeq(code, GenInstr("_true", ".asciiz", "\"true\"", NULL, NULL));
@@ -541,14 +714,10 @@ void Finish(struct InstrSeq *Code)
     AppendSeq(code, GenInstr(str->Label, ".asciiz", str->String, NULL, NULL));
 
     str = str->Next;
+    free(allStrings);
+    allStrings = str;
   }
-
-  hasMore = startIterator(table);
-  while (hasMore)
-  {
-    AppendSeq(code, GenInstr((char *)getCurrentName(table), ".word", "0", NULL, NULL));
-    hasMore = nextEntry(table);
-  }
+  free(allStrings);
 
   WriteSeq(code);
   return;

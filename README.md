@@ -2,7 +2,7 @@
 
 A compiler that works for a smaller subsection of the C language. It compiles a C-like language into MIPS assembly code.
 
-## Featues & Support
+## Features & Support
 
 The compiler can take advantage of the following features:</br>
 

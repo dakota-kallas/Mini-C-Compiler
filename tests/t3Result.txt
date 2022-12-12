@@ -1,0 +1,6 @@
+Enter 4 integers. The second integer must be positive: 3
+4
+5
+6
+
+3 4 5 6        411 = i^j*k+m        411 = m+k*i^j

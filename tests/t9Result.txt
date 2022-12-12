@@ -1,0 +1,14 @@
+Enter the number of ints (30 or less) in the array: 10
+Enter an int: 1
+Enter an int: 9
+Enter an int: 2
+Enter an int: 8
+Enter an int: 3
+Enter an int: 7
+Enter an int: 4
+Enter an int: 6
+Enter an int: 5
+Enter an int: 10
+
+
+10 9 8 7 6 5 4 3 2 1 

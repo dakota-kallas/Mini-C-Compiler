@@ -41,7 +41,7 @@ The compiler can take advantage of the following features:</br>
   - Ex. `printlines(2)`
 - printspaces(expression)
   - Print expression number of spaces
-  - Ex. printspaces(3\*n)
+  - Ex. `printspaces(3\*n)`
 - printString(“Literal String”)
   - Print a literal representation of the provided string
 
@@ -50,6 +50,12 @@ The compiler can take advantage of the following features:</br>
 - if statements including optional else
 - while loops
 - Uses C syntax & C definition of true (non-zero) and false (zero)
+
+### 1D & 2D Arrays
+
+- Size of the array is declared at compile time
+- Subscripts can use constants and expressions.
+  - Ex. `nums[2*i] = z * nums[j-3*k]`
 
 ## Compilation & Execution
 #### Compile Yacc file

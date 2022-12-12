@@ -15,6 +15,7 @@ extern SymTab *table;
 
 struct String *allStrings = NULL;
 struct Array *allArrays = NULL;
+struct Array2D *all2DArrays = NULL;
 
 typedef struct
 {
@@ -58,10 +59,39 @@ struct InstrSeq *createArray(char *name, char *size)
   arr->Name = name;
   arr->Next = allArrays;
   arr->Size = atoi(size);
-  allArrays = arr;
+  create2
+      allArrays = arr;
 
   result = AppendSeq(NULL, GenInstr(NULL, "sll", TmpRegName(reg), size, "2"));
   AppendSeq(result, GenInstr(NULL, "la", "$a0", arr->Name, NULL));
+
+  ReleaseTmpReg(reg);
+  return result;
+}
+
+struct InstrSeq *create2DArray(char *name, char *xSize, char *ySize)
+{
+  struct InstrSeq *result = (struct InstrSeq *)malloc(sizeof(struct InstrSeq));
+  int reg;
+  reg = AvailTmpReg();
+
+  struct Array2D *arr = (struct Array2D *)malloc(sizeof(struct Array2D));
+
+  arr->Name = name;
+  arr->Next = all2DArrays;
+  arr->SizeX = atoi(xSize);
+  arr->SizeY = atoi(ySize);
+  all2DArrays = arr;
+
+  char *sizeString = (char *)malloc(100 * sizeof(sizeString));
+  int size = arr->SizeX * arr->SizeY;
+  sprintf(sizeString, "%d", size);
+
+  result = AppendSeq(NULL, GenInstr(NULL, "sll", TmpRegName(reg), sizeString, "2"));
+  AppendSeq(result, GenInstr(NULL, "la", "$a0", arr->Name, NULL));
+
+  free(sizeString);
+  ReleaseTmpReg(reg);
 
   return result;
 }
@@ -101,6 +131,46 @@ struct ExprRes *doBoolLit(char *boolean)
   }
 
   return res;
+}
+
+/**
+ * @brief Get the Rvalue of an element in a 2D array
+ *
+ * @param name represents the name of the array we are looking for
+ * @param Res1 represents the x location of element we are looking for
+ * @param Res2 represents the y location of element we are looking for
+ * @return struct ExprRes* that represents to code required to access that element
+ */
+struct ExprRes *do2DArrayRval(char *name, struct ExprRes *Res1, struct ExprRes *Res2)
+{
+  char *elementRval = (char *)malloc(100 * sizeof(char));
+
+  AppendSeq(Res1->Instrs, GenInstr(NULL, "sll", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), "2"));
+
+  struct Array2D *arr = all2DArrays;
+  while (arr)
+  {
+    if (strcmp(arr->Name, name) == 0)
+    {
+      AppendSeq(Res1->Instrs, Res2->Instrs);
+      sprintf(elementRval, "%d", arr->SizeX);
+      AppendSeq(Res1->Instrs, GenInstr(NULL, "mul", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), elementRval));
+      AppendSeq(Res1->Instrs, GenInstr(NULL, "sll", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), "2"));
+      AppendSeq(Res1->Instrs, GenInstr(NULL, "add", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), TmpRegName(Res2->Reg)));
+
+      ReleaseTmpReg(Res2->Reg);
+      break;
+    }
+    arr = arr->Next;
+  }
+
+  sprintf(elementRval, "%s(%s)", name, TmpRegName(Res1->Reg));
+  AppendSeq(Res1->Instrs, GenInstr(NULL, "lw", TmpRegName(Res1->Reg), elementRval, NULL));
+
+  free(elementRval);
+  free(name);
+
+  return Res1;
 }
 
 /**
@@ -177,6 +247,7 @@ struct ExprRes *doCompare(struct ExprRes *Res1, struct ExprRes *Res2, char *OpCo
   ReleaseTmpReg(Res2->Reg);
   Res1->Reg = reg;
   Res1->Type = 2; // Boolean
+
   free(Res2);
   return Res1;
 }
@@ -451,31 +522,27 @@ struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
   {
     result = AppendSeq(result, ExprListCopy->Expr->Instrs);
 
-    // if (ExprListCopy->Expr->Type == 2)
-    // {
-    //   char *label1 = GenLabel();
-    //   char *label2 = GenLabel();
-    //   AppendSeq(result, GenInstr(NULL, "beq", "$zero", TmpRegName(ExprListCopy->Expr->Reg), label1));
-    //   AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
-    //   AppendSeq(result, GenInstr(NULL, "la", "$a0", "_true", NULL));
-    //   AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
-    //   AppendSeq(result, GenInstr(NULL, "j", label2, NULL, NULL));
-    //   AppendSeq(result, GenInstr(label1, NULL, NULL, NULL, NULL));
-    //   AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
-    //   AppendSeq(result, GenInstr(NULL, "la", "$a0", "_false", NULL));
-    //   AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
-    //   AppendSeq(result, GenInstr(label2, NULL, NULL, NULL, NULL));
-    // }
-    // else
-    // {
-    AppendSeq(result, GenInstr(NULL, "add", "$a0", TmpRegName(ExprListCopy->Expr->Reg), "$zero"));
-    AppendSeq(result, GenInstr(NULL, "li", "$v0", "1", NULL));
-    AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
-    // }
-
-    AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
-    AppendSeq(result, GenInstr(NULL, "la", "$a0", "_space", NULL));
-    AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    if (ExprListCopy->Expr->Type == 2 && 1 == 0)
+    {
+      char *label1 = GenLabel();
+      char *label2 = GenLabel();
+      AppendSeq(result, GenInstr(NULL, "beq", "$zero", TmpRegName(ExprListCopy->Expr->Reg), label1));
+      AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+      AppendSeq(result, GenInstr(NULL, "la", "$a0", "_true", NULL));
+      AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+      AppendSeq(result, GenInstr(NULL, "j", label2, NULL, NULL));
+      AppendSeq(result, GenInstr(label1, NULL, NULL, NULL, NULL));
+      AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+      AppendSeq(result, GenInstr(NULL, "la", "$a0", "_false", NULL));
+      AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+      AppendSeq(result, GenInstr(label2, NULL, NULL, NULL, NULL));
+    }
+    else
+    {
+      AppendSeq(result, GenInstr(NULL, "add", "$a0", TmpRegName(ExprListCopy->Expr->Reg), "$zero"));
+      AppendSeq(result, GenInstr(NULL, "li", "$v0", "1", NULL));
+      AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    }
 
     ReleaseTmpReg(ExprListCopy->Expr->Reg);
     free(ExprListCopy->Expr);
@@ -483,6 +550,12 @@ struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
     ExprList = ExprListCopy;
     ExprListCopy = ExprListCopy->Next;
     free(ExprList);
+    if (ExprListCopy)
+    {
+      AppendSeq(result, GenInstr(NULL, "li", "$v0", "4", NULL));
+      AppendSeq(result, GenInstr(NULL, "la", "$a0", "_space", NULL));
+      AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+    }
   }
   free(ExprListCopy);
 
@@ -494,7 +567,7 @@ struct InstrSeq *doPrintExpressionList(struct ExprResList *ExprList)
  *
  * @param Id represents the word being stored in
  * @param Next represents the rest of the values being read into
- * @return struct InstrSeq* the instructions required to read in theId values
+ * @return struct InstrSeq* the instructions required to read in the Id values
  */
 struct InstrSeq *doRead(char *Id, struct InstrSeq *Next)
 {
@@ -506,6 +579,14 @@ struct InstrSeq *doRead(char *Id, struct InstrSeq *Next)
   return result;
 }
 
+/**
+ * @brief Method used to read in an Array value from the user
+ *
+ * @param Id represents the array being stored in
+ * @param Res represents the location in the array
+ * @param Next represents the rest of the values being read into
+ * @return struct InstrSeq* the instructions required to read in the Array values
+ */
 struct InstrSeq *doReadArray(char *Id, struct ExprRes *Res, struct InstrSeq *Next)
 {
   struct InstrSeq *result = AppendSeq(NULL, GenInstr(NULL, "li", "$v0", "5", NULL));
@@ -516,6 +597,55 @@ struct InstrSeq *doReadArray(char *Id, struct ExprRes *Res, struct InstrSeq *Nex
   sprintf(offset, "%s(%s)", Id, TmpRegName(Res->Reg));
   AppendSeq(result, GenInstr(NULL, "sw", "$v0", offset, NULL));
   AppendSeq(result, Next);
+
+  ReleaseTmpReg(Res->Reg);
+  free(offset);
+  free(Id);
+
+  return result;
+}
+
+/**
+ * @brief Method used to read in a 2D Array value from the user
+ *
+ * @param Id represents the 2D array being stored in
+ * @param Res1 represents the x location in the array
+ * @param Res2 represents the x location in the array
+ * @param Next represents the rest of the values being read into
+ * @return struct InstrSeq* the instructions required to read in the 2D Array values
+ */
+struct InstrSeq *doRead2DArray(char *Id, struct ExprRes *Res1, struct ExprRes *Res2, struct InstrSeq *Next)
+{
+  struct InstrSeq *result = AppendSeq(NULL, GenInstr(NULL, "li", "$v0", "5", NULL));
+  AppendSeq(result, GenInstr(NULL, "syscall", NULL, NULL, NULL));
+  AppendSeq(result, GenInstr(NULL, "sll", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), "2"));
+
+  char *offset = malloc(100 * sizeof(char));
+
+  struct Array2D *arr = all2DArrays;
+  while (arr)
+  {
+    if (strcmp(arr->Name, Id) == 0)
+    {
+      AppendSeq(result, Res2->Instrs);
+      sprintf(offset, "%d", arr->SizeX);
+      AppendSeq(result, GenInstr(NULL, "mul", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), offset));
+      AppendSeq(result, GenInstr(NULL, "sll", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), "2"));
+      AppendSeq(result, GenInstr(NULL, "add", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), TmpRegName(Res2->Reg)));
+
+      ReleaseTmpReg(Res2->Reg);
+      break;
+    }
+    arr = arr->Next;
+  }
+
+  sprintf(offset, "%s(%s)", Id, TmpRegName(Res1->Reg));
+  AppendSeq(result, GenInstr(NULL, "sw", "$v0", offset, NULL));
+  AppendSeq(result, Next);
+
+  ReleaseTmpReg(Res1->Reg);
+  free(offset);
+  free(Id);
 
   return result;
 }
@@ -577,6 +707,52 @@ struct InstrSeq *doArrayAssign(char *name, struct ExprRes *Res1, struct ExprRes 
   ReleaseTmpReg(Res2->Reg);
   free(Res1);
   free(Res2);
+  free(offset);
+  free(name);
+
+  return result;
+}
+
+/**
+ * @brief Method used to assign a value to a 2D array element
+ *
+ * @param name represents the array we are using
+ * @param Res1 represents the x location of the element we want to access
+ * @param Res2 represents the y location of the element we want to access
+ * @param Res3 represents what is being stored in that elemenet
+ * @return struct InstrSeq* that represents the code required to store a value in the given element
+ */
+struct InstrSeq *do2DArrayAssign(char *name, struct ExprRes *Res1, struct ExprRes *Res2, struct ExprRes *Res3)
+{
+  struct InstrSeq *result = (struct InstrSeq *)malloc(sizeof(struct InstrSeq));
+
+  char *offset = malloc(100 * sizeof(char));
+
+  result = AppendSeq(Res1->Instrs, GenInstr(NULL, "sll", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), "2"));
+
+  struct Array2D *arr = all2DArrays;
+  while (arr)
+  {
+    if (strcmp(arr->Name, name) == 0)
+    {
+      AppendSeq(result, Res2->Instrs);
+      sprintf(offset, "%d", arr->SizeX);
+      AppendSeq(result, GenInstr(NULL, "mul", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), offset));
+      AppendSeq(result, GenInstr(NULL, "sll", TmpRegName(Res2->Reg), TmpRegName(Res2->Reg), "2"));
+      AppendSeq(result, GenInstr(NULL, "add", TmpRegName(Res1->Reg), TmpRegName(Res1->Reg), TmpRegName(Res2->Reg)));
+
+      ReleaseTmpReg(Res2->Reg);
+      break;
+    }
+    arr = arr->Next;
+  }
+
+  AppendSeq(result, Res3->Instrs);
+  sprintf(offset, "%s(%s)", name, TmpRegName(Res1->Reg));
+  AppendSeq(result, GenInstr(NULL, "sw", TmpRegName(Res3->Reg), offset, NULL));
+
+  ReleaseTmpReg(Res1->Reg);
+  ReleaseTmpReg(Res3->Reg);
   free(offset);
   free(name);
 
@@ -695,6 +871,22 @@ void Finish(struct InstrSeq *Code)
     allArrays = arr;
   }
   free(allArrays);
+  free(arrSize);
+
+  struct Array2D *arr2D = all2DArrays;
+  char *arr2DSize = (char *)malloc(100 * sizeof(char));
+
+  while (arr2D)
+  {
+    sprintf(arr2DSize, "%d", (arr2D->SizeX * arr2D->SizeY) << 2);
+    AppendSeq(code, GenInstr(arr2D->Name, ".space", arr2DSize, NULL, NULL));
+
+    arr2D = arr2D->Next;
+    free(all2DArrays);
+    all2DArrays = arr2D;
+  }
+  free(all2DArrays);
+  free(arr2DSize);
 
   hasMore = startIterator(table);
   while (hasMore)

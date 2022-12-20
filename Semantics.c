@@ -59,8 +59,7 @@ struct InstrSeq *createArray(char *name, char *size)
   arr->Name = name;
   arr->Next = allArrays;
   arr->Size = atoi(size);
-  create2
-      allArrays = arr;
+  allArrays = arr;
 
   result = AppendSeq(NULL, GenInstr(NULL, "sll", TmpRegName(reg), size, "2"));
   AppendSeq(result, GenInstr(NULL, "la", "$a0", arr->Name, NULL));
